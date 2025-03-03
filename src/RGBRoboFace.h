@@ -88,11 +88,12 @@ struct eyes {
 class RGBroboFace {
 public:
   RGBroboFace(int width, int height, bool round_display = false);
+  Arduino_Canvas *canvasGfx;
 
   //*********************************************************************************************
   //  GENERAL METHODS
   //*********************************************************************************************
-  void begin(Arduino_RGB_Display *display, uint8_t frameRate, bool dbug=false);
+  void begin(Arduino_GFX *display, uint8_t frameRate, bool dbug=false);
   void setFramerate(uint8_t fps);
   void update();
 
@@ -159,8 +160,7 @@ public:
 
 
 private:
-  Arduino_RGB_Display *_display;
-  Arduino_Canvas *canvasGfx;
+  Arduino_GFX *_display;
 
   //*********************************************************************************************
   //  PRE-CALCULATIONS AND ACTUAL DRAWINGS

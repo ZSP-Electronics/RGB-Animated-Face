@@ -23,7 +23,7 @@ RGBroboFace::RGBroboFace(int width, int height, bool round_display) {
 //  GENERAL METHODS
 //*********************************************************************************************
 
-void RGBroboFace::begin(Arduino_RGB_Display *display, uint8_t frameRate, bool dbug) {
+void RGBroboFace::begin(Arduino_GFX *display, uint8_t frameRate, bool dbug) {
   _debug = dbug;
   _display = display;
 
