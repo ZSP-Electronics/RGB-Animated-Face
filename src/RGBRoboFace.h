@@ -83,6 +83,8 @@ struct eyes {
   int cY;
   bool open;
   bool blinking;
+  // int eyeLidTop;
+  // int eyeLidBottom;
 };
 
 class RGBroboFace {
@@ -95,7 +97,8 @@ public:
   //*********************************************************************************************
   void begin(Arduino_GFX *display, uint8_t frameRate, bool dbug=false);
   void setFramerate(uint8_t fps);
-  void update();
+  void update(bool flush = true);
+  void setRotation(uint8_t r);
 
   //*********************************************************************************************
   //  SETTERS METHODS
@@ -106,6 +109,7 @@ public:
 
   void setCrosshair(bool active);
   void setSectorLines(bool active);
+  void setFPScounter(bool active);
 
   // Set automated eye blinking, minimal blink interval in full seconds and blink interval variation range in full seconds
   void setAutoblinker(bool active, int interval, int variation);
@@ -161,6 +165,7 @@ public:
 
 private:
   Arduino_GFX *_display;
+  //Arduino_GFX *_display;
 
   //*********************************************************************************************
   //  PRE-CALCULATIONS AND ACTUAL DRAWINGS
@@ -185,6 +190,8 @@ private:
   void open() {
     _eyes[LEFT].open = true;   // left eye opened - if true, drawEyes() will take care of opening eyes again
     _eyes[RIGHT].open = true;  // right eye opened
+    //_eyes[LEFT_NEXT].eyeLidTop = _eyes[LEFT_NEXT].eyeLidBottom = 0;
+    //_eyes[RIGHT_NEXT].eyeLidTop = _eyes[RIGHT_NEXT].eyeLidBottom = 0;
   }
 
   // Trigger eyeblink animation
@@ -194,8 +201,8 @@ private:
   }
 
   // For general setup - screen size and max. frame rate
-  int _screenWidth;            // OLED display width, in pixels
-  int _screenHeight;           // OLED display height, in pixels
+  int _screenWidth, _prevScreenWidth;            // OLED display width, in pixels
+  int _screenHeight, _prevScreenHeight;           // OLED display height, in pixels
   int _frameInterval = 20;     // default value for 50 frames per second (1000/50 = 20 milliseconds)
   unsigned long fpsTimer = 0;  // for timing the frames per second
   uint8_t _framedivisor = 4;
@@ -207,13 +214,26 @@ private:
   float _faceCenter_y, _faceCenter_yNext = 0;
   uint16_t _eyeColorDefault = WHITE;
   uint16_t _bgColor = BLACK;
+  // bool circular_constrain = false;
+  // int radius_con;
   uint8_t _padding = 0;
   uint16_t _sector_sizeX;
   uint16_t _sector_sizeY;
 
+  // For controlling mood types and expressions
+  // bool tired = false;
+  // bool angry = false;
+  // bool happy = false;
+  //bool curious = false;  // if true, draw the outer eye larger when looking left or right
+  // bool sad = false;
+  // bool annoyed = false;
+  // bool surprised = false;
+
   EmotionLvls _emotions[3];
 
   bool cyclops = false;  // if true, draw only one eye
+  //bool eyeL_open = false;  // left eye opened or closed?
+  //bool eyeR_open = false;  // right eye opened or closed?
   bool idle_center = false;
   bool cross_hair = false;
   bool sector_lines = false;
@@ -235,8 +255,21 @@ private:
   // EYELIDS
   int eyelidRadius = 0;
   int eyelidRadiusNext;
+  // int eyelidsHeightMax;  // top eyelids max height
+  // int eyelidsTiredHeight = 0;
+  // int eyelidsTiredHeightNext;
+  // int eyelidsAngryHeight = 0;
+  // int eyelidsAngryHeightNext;
+
+  // int eyelidsSadHeight = 0;
+  // int eyelidsSadHeightNext;
   int eyelidPadding = 0;
   int eyelidPaddingNext;
+
+  // // Bottom happy eyelids offset
+  // int eyelidsHappyBottomOffsetMax;
+  // int eyelidsHappyBottomOffset = 0;
+  // int eyelidsHappyBottomOffsetNext = 0;
 
   //*********************************************************************************************
   //  Mouth Geometry
@@ -317,5 +350,7 @@ protected:
   bool setup_complete = false;
   bool _debug = false;
   uint16_t _FakebgColor = RED;
+  bool _fps = false;
+  uint32_t _lastFps = 0;
 };
 #endif

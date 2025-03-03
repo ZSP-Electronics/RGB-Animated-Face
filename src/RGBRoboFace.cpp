@@ -1,8 +1,9 @@
 #include "RGBRoboFace.h"
+//#include "FreeSansBold10pt7b.h"
 
 RGBroboFace::RGBroboFace(int width, int height, bool round_display) {
-  _screenWidth = width;
-  _screenHeight = height;
+  _screenWidth = _prevScreenWidth = width;
+  _screenHeight = _prevScreenHeight = height;
 
   _sector_sizeX = _screenWidth / 5;
   _sector_sizeY = _screenHeight / 5;
@@ -33,6 +34,9 @@ void RGBroboFace::begin(Arduino_GFX *display, uint8_t frameRate, bool dbug) {
   canvasGfx->begin();
   canvasGfx->fillScreen(_bgColor);
   canvasGfx->flush();
+  //canvasGfx->setDirectUseColorIndex(true);
+  //eyeLheightCurrent = 1;    // start with closed eyes
+  //eyeRheightCurrent = 1;    // start with closed eyes
   setFramerate(frameRate);  // calculate frame interval based on defined frameRate
 
   // BUILD DEFAULT FACE
@@ -51,6 +55,8 @@ void RGBroboFace::begin(Arduino_GFX *display, uint8_t frameRate, bool dbug) {
   _eyes[DEFAULT].cY = 0;
   _eyes[DEFAULT].open = true;
   _eyes[DEFAULT].blinking = true;
+  // _eyes[DEFAULT].eyeLidTop = 0;
+  // _eyes[DEFAULT].eyeLidBottom = 0;
 
   // BUILD EYE USING DEFAULTS
   // Start eyes as closed
@@ -59,13 +65,16 @@ void RGBroboFace::begin(Arduino_GFX *display, uint8_t frameRate, bool dbug) {
     _eyes[i].height = eyeHeightDefault;
     _eyes[i].heightOffset = eyeHeightOffsetDefault;
     _eyes[i].radius = eyeBorderRadiusDefault;
+    // if ((i % 2) == 0) _eyes[i].distanceCenterX = spaceBetweenDefault;
+    // else _eyes[i].distanceCenterX = -spaceBetweenDefault;
     _eyes[i].distanceCenterX = spaceBetweenDefault;
     if (mouthActive) _eyes[i].distanceCenterY = spaceHeightDefault;
     else _eyes[i].distanceCenterY = 0;
     _eyes[i].color = _eyeColorDefault;
     _eyes[i].open = false;
     _eyes[i].blinking = false;
-
+    // _eyes[i].eyeLidTop = 0;
+    // _eyes[i].eyeLidBottom = 0;
   }
 
   // EYE - Coordinates
@@ -123,17 +132,44 @@ void RGBroboFace::begin(Arduino_GFX *display, uint8_t frameRate, bool dbug) {
   // }
 }
 
-void RGBroboFace::update() {
+void RGBroboFace::update(bool flush) {
   // Limit drawing updates to defined max framerate
   if (millis() - fpsTimer >= _frameInterval) {
     drawFace();
+
+    if (flush)
+      canvasGfx->flush();
+
     fpsTimer = millis();
+    setup_complete = true;
+    //_fps = millis();
   }
-  setup_complete = true;
 }
 
 void RGBroboFace::setFramerate(uint8_t fps) {
   _frameInterval = 1000 / fps;
+}
+
+void RGBroboFace::setRotation(uint8_t r){
+  uint8_t _rotation = (r & 7);
+  canvasGfx->setRotation(_rotation);
+  switch (_rotation)
+  {
+  case 7:
+  case 5:
+  case 3:
+  case 1:
+    _screenWidth = _prevScreenHeight;
+    _screenHeight = _prevScreenWidth;
+    break;
+  case 6:
+  case 4:
+  case 2:
+  default: // case 0:
+    _screenWidth = _prevScreenWidth;
+    _screenHeight = _prevScreenHeight;
+    break;
+  }
 }
 
 //*********************************************************************************************
@@ -159,6 +195,10 @@ void RGBroboFace::setWidth(int leftEye, int rightEye) {
     _eyes[LEFT].width = leftEye;
     _eyes[RIGHT].width = rightEye;
   }
+  //eyeRwidthDefault = rightEye;
+
+  //eyeLxNext = center_x - (eyeLwidthDefault + spaceBetweenDefault);
+  //eyeRxNext = center_x + spaceBetweenDefault+2;
 }
 
 void RGBroboFace::setHeight(int leftEye, int rightEye) {
@@ -170,6 +210,10 @@ void RGBroboFace::setHeight(int leftEye, int rightEye) {
     _eyes[LEFT].height = leftEye;
     _eyes[RIGHT].height = rightEye;
   }
+  //eyeRheightDefault = rightEye;
+
+  //eyeLyNext = center_y - (eyeLheightDefault/2);
+  //eyeRyNext = center_y - (eyeRheightDefault/2);
 }
 
 void RGBroboFace::setHeightOffset(int leftEye, int rightEye) {
@@ -193,6 +237,7 @@ void RGBroboFace::setBorderradius(int leftEye, int rightEye) {
     _eyes[LEFT].radius = leftEye;
     _eyes[RIGHT].radius = rightEye;
   }
+  //eyeRborderRadiusDefault = rightEye;
 }
 
 // Set space between the eyes, can also be negative
@@ -205,6 +250,8 @@ void RGBroboFace::setSpacebetween(int space) {
     _eyes[LEFT].distanceCenterX = space;
     _eyes[RIGHT].distanceCenterX = space;
   }
+  //eyeLxNext = center_x - (eyeLwidthDefault + spaceBetweenDefault);
+  //eyeRxNext = center_x + spaceBetweenDefault+2;
 }
 
 // Set mood expression
@@ -449,10 +496,30 @@ void RGBroboFace::drawFace() {
       }
       idleAnimationTimer = millis() + (idleInterval * 1000) + (random(idleIntervalVariation) * 1000);  // calculate next time for eyes repositioning
     }
+
+    // if (getSector(_faceCenter_xNext, _faceCenter_yNext) == 2 || getSector(_faceCenter_xNext, _faceCenter_yNext) == 8) {
+    //   //Top or Bottom Center
+    //   _eyes[LEFT].heightOffset = _eyes[LEFT_NEXT].heightOffset;
+    //   _eyes[RIGHT].heightOffset = _eyes[RIGHT_NEXT].heightOffset;
+    // } else if (getSector(_faceCenter_xNext, _faceCenter_yNext) == 1 || getSector(_faceCenter_xNext, _faceCenter_yNext) == 4 || getSector(_faceCenter_xNext, _faceCenter_yNext) == 7) {
+    //   //Looking left
+    //   _eyes[LEFT].heightOffset = -8;
+    //   _eyes[RIGHT].heightOffset = 0;
+    // } else if (getSector(_faceCenter_xNext, _faceCenter_yNext) == 3 || getSector(_faceCenter_xNext, _faceCenter_yNext) == 6 || getSector(_faceCenter_xNext, _faceCenter_yNext) == 9) {
+    //   //Looking right
+    //   _eyes[LEFT].heightOffset = 0;
+    //   _eyes[RIGHT].heightOffset = -8;
+    // } else {
+    //   _eyes[LEFT].heightOffset = 0;
+    //   _eyes[RIGHT].heightOffset = 0;
+    // }
   }
 
   // _faceCenter_x = (_faceCenter_x + _faceCenter_xNext) / 2;
   // _faceCenter_y = (_faceCenter_y + _faceCenter_yNext) / 2;
+
+  // _faceCenter_x = _faceCenter_x + (abs(_faceCenter_xNext - _faceCenter_x) / _framedivisor);
+  // _faceCenter_y = _faceCenter_y + (abs(_faceCenter_yNext - _faceCenter_y) / _framedivisor);
 
   _faceCenter_x = (_faceCenter_x * 0.9) + (_faceCenter_xNext * 0.1);
   _faceCenter_y = (_faceCenter_y * 0.9) + (_faceCenter_yNext * 0.1);
@@ -484,8 +551,15 @@ void RGBroboFace::drawFace() {
     canvasGfx->drawLine(_faceCenter_x, _faceCenter_y - 5, _faceCenter_x, _faceCenter_y + 5, RGB565(242, 242, 33));
   }
 
-
-  canvasGfx->flush();
+  if (_fps) {
+    canvasGfx->setCursor((_screenWidth / 2), 20);
+    //canvasGfx->setFont(&FreeSansBold10pt7b);
+    canvasGfx->setTextColor(GREEN);
+    //Serial.printf("FPS counter: %ld   Last FPS %ld\n", millis(), _lastFps);
+    canvasGfx->print(1000 / (millis() - _lastFps - _frameInterval));
+    canvasGfx->println(" FPS");
+    _lastFps = millis();
+  }
 }
 
 void RGBroboFace::drawEyes() {
@@ -504,6 +578,21 @@ void RGBroboFace::drawEyes() {
   _eyes[RIGHT].distanceCenterY = (_eyes[RIGHT].distanceCenterY + _eyes[RIGHT_NEXT].distanceCenterY) / 2;
   _eyes[RIGHT].radius = (_eyes[RIGHT].radius + _eyes[RIGHT_NEXT].radius) / 2;
 
+  // Left eye width
+  // _eyes[LEFT].width = _eyes[LEFT].width + ((_eyes[LEFT_NEXT].width - _eyes[LEFT].width) / _framedivisor);
+  // _eyes[LEFT].height = _eyes[LEFT].height + ((_eyes[LEFT_NEXT].height - _eyes[LEFT].height) / _framedivisor);
+  // _eyes[LEFT].distanceCenterX = _eyes[LEFT].distanceCenterX + ((_eyes[LEFT_NEXT].distanceCenterX - _eyes[LEFT].distanceCenterX) / _framedivisor);
+  // _eyes[LEFT].distanceCenterY = _eyes[LEFT].distanceCenterY + ((_eyes[LEFT_NEXT].distanceCenterY - _eyes[LEFT].distanceCenterY) / _framedivisor);
+  // _eyes[LEFT].radius = _eyes[LEFT].radius + ((_eyes[LEFT_NEXT].radius - _eyes[LEFT].radius) / _framedivisor);
+
+
+  // // Right eye width
+  // _eyes[RIGHT].width = _eyes[RIGHT].width + ((_eyes[RIGHT_NEXT].width - _eyes[RIGHT].width) / _framedivisor);
+  // _eyes[RIGHT].height = _eyes[RIGHT].height + ((_eyes[RIGHT_NEXT].height - _eyes[RIGHT].height) / _framedivisor);
+  // _eyes[RIGHT].distanceCenterX = _eyes[RIGHT].distanceCenterX + ((_eyes[RIGHT_NEXT].distanceCenterX - _eyes[RIGHT].distanceCenterX) / _framedivisor);
+  // _eyes[RIGHT].distanceCenterY = _eyes[RIGHT].distanceCenterY + ((_eyes[RIGHT_NEXT].distanceCenterY - _eyes[RIGHT].distanceCenterY) / _framedivisor);
+  // _eyes[RIGHT].radius = _eyes[RIGHT].radius + ((_eyes[RIGHT_NEXT].radius - _eyes[RIGHT].radius) / _framedivisor);
+
 
   //EYE Coordinates Default prior to modifications
   if (!mouthActive) {
@@ -521,6 +610,32 @@ void RGBroboFace::drawEyes() {
     _eyes[RIGHT].cY = _faceCenter_y - _eyes[LEFT].height - _padding;
   }
 
+  // if (_eyes[LEFT].open) {
+  //   if (!setup_complete) {
+  //     // First draw of face. Set eyes in closed position
+  //     _eyes[LEFT_NEXT].eyeLidTop = 0;
+  //     _eyes[LEFT].eyeLidTop = (_eyes[LEFT].height / 2);
+  //     _eyes[LEFT_NEXT].eyeLidBottom = 0;
+  //     _eyes[LEFT].eyeLidBottom = (_eyes[LEFT].height / 2);
+  //   } else {
+  //     if (_eyes[LEFT].eyeLidTop >= (_eyes[LEFT].height / 2) - 1) { _eyes[LEFT_NEXT].eyeLidTop = 0; }
+  //     if (_eyes[LEFT].eyeLidBottom >= (_eyes[LEFT].height / 2) - 1) { _eyes[LEFT_NEXT].eyeLidBottom = 0; }
+  //   }
+  // }
+
+  // if (_eyes[RIGHT].open) {
+  //   if (!setup_complete) {
+  //     // First draw of face. Set eyes in closed position
+  //     _eyes[RIGHT_NEXT].eyeLidTop = 0;
+  //     _eyes[RIGHT].eyeLidTop = (_eyes[RIGHT].height / 2);
+  //     _eyes[RIGHT_NEXT].eyeLidBottom = 0;
+  //     _eyes[RIGHT].eyeLidBottom = (_eyes[RIGHT].height / 2);
+  //   } else {
+  //     if (_eyes[RIGHT].eyeLidTop >= (_eyes[RIGHT].height / 2) - 1) { _eyes[RIGHT_NEXT].eyeLidTop = 0; }
+  //     if (_eyes[RIGHT].eyeLidBottom >= (_eyes[RIGHT].height / 2) - 1) { _eyes[RIGHT_NEXT].eyeLidBottom = 0; }
+  //   }
+  // }
+
   // Open eyes again after closing them
   if (_eyes[LEFT].open && _eyes[LEFT].blinking) {
     if (_eyes[LEFT].height <= 1 + _eyes[LEFT].heightOffset) {
@@ -534,6 +649,27 @@ void RGBroboFace::drawEyes() {
       _eyes[RIGHT].blinking = false;
     }
   }
+
+
+
+
+  // _eyes[LEFT].eyeLidTop = _eyes[LEFT].eyeLidTop + ((_eyes[LEFT_NEXT].eyeLidTop - _eyes[LEFT].eyeLidTop) / _framedivisor);
+  // _eyes[LEFT].eyeLidBottom = _eyes[LEFT].eyeLidBottom + ((_eyes[LEFT_NEXT].eyeLidBottom - _eyes[LEFT].eyeLidBottom) / _framedivisor);
+  // _eyes[RIGHT].eyeLidTop = _eyes[RIGHT].eyeLidTop + ((_eyes[RIGHT_NEXT].eyeLidTop - _eyes[RIGHT].eyeLidTop) / _framedivisor);
+  // _eyes[RIGHT].eyeLidBottom = _eyes[RIGHT].eyeLidBottom + ((_eyes[RIGHT_NEXT].eyeLidBottom - _eyes[RIGHT].eyeLidBottom) / _framedivisor);
+
+  // _eyes[LEFT].eyeLidTop = (_eyes[LEFT].eyeLidTop + _eyes[LEFT_NEXT].eyeLidTop) / 2;
+  // _eyes[LEFT].eyeLidBottom = (_eyes[LEFT].eyeLidBottom + _eyes[LEFT_NEXT].eyeLidBottom) / 2;
+  // _eyes[RIGHT].eyeLidTop = (_eyes[RIGHT].eyeLidTop + _eyes[RIGHT_NEXT].eyeLidTop) / 2;
+  // _eyes[RIGHT].eyeLidBottom = (_eyes[RIGHT].eyeLidBottom + _eyes[RIGHT_NEXT].eyeLidBottom) / 2;
+
+
+  // For Blinking Left eye
+  // _eyes[LEFT].cY += ((_eyes[DEFAULT].height - _eyes[LEFT].height) / 2);  // vertical centering of eye when closing
+  // _eyes[LEFT].cY -= _eyes[LEFT].heightOffset / 2;
+  // // For Blinking Right eye
+  // _eyes[RIGHT].cY += ((_eyes[DEFAULT].height - _eyes[RIGHT].height) / 2);  // vertical centering of eye when closing
+  // _eyes[RIGHT].cY -= _eyes[RIGHT].heightOffset / 2;
 
   _emotions[VALUE].happiness = (_emotions[VALUE].happiness + _emotions[VALUE_NEXT].happiness) / 2;
   _emotions[VALUE].anger = (_emotions[VALUE].anger + _emotions[VALUE_NEXT].anger) / 2;
@@ -698,6 +834,14 @@ void RGBroboFace::drawEyes() {
     if (!_eyes[RIGHT].blinking)
       canvasGfx->fillRoundRect(_eyes[RIGHT].cX - 1, _eyes[RIGHT].cY + (_eyes[RIGHT].height - _emotions[VALUE].happiness), _eyes[RIGHT].width + 2, _emotions[VALUE].happiness, eyelidRadius, _bgColor);
   }
+
+  // Draw eye lids
+  // canvasGfx->fillRoundRect(_eyes[LEFT].cX - 1, _eyes[LEFT].cY - 1, _eyes[LEFT].width + 2, _eyes[LEFT].eyeLidTop, 0, _bgColor);                                                   // left eye
+  // canvasGfx->fillRoundRect(_eyes[LEFT].cX - 1, _eyes[LEFT].cY + (_eyes[LEFT].height - _eyes[LEFT].eyeLidBottom), _eyes[LEFT].width + 2, _eyes[LEFT].eyeLidBottom, 0, _bgColor);  // left eye
+  // if (!cyclops) {
+  //   canvasGfx->fillRoundRect(_eyes[RIGHT].cX - 1, _eyes[RIGHT].cY - 1, _eyes[RIGHT].width + 2, _eyes[RIGHT].eyeLidTop, 0, _bgColor);                                                     // left eye
+  //   canvasGfx->fillRoundRect(_eyes[RIGHT].cX - 1, _eyes[RIGHT].cY + (_eyes[RIGHT].height - _eyes[RIGHT].eyeLidBottom), _eyes[RIGHT].width + 2, _eyes[RIGHT].eyeLidBottom, 0, _bgColor);  // left eye
+  // }
 }
 
 
@@ -791,6 +935,11 @@ void RGBroboFace::setSectorLines(bool active) {
   sector_lines = active;
 }
 
+void RGBroboFace::setFPScounter(bool active) {
+  _fps = active;
+  _lastFps = millis();
+}
+
 void RGBroboFace::setFaceExpression(uint8_t mood) {
   setEyeExpression(mood);
   setMouthExpression(mood);
@@ -800,6 +949,7 @@ void RGBroboFace::debug() {
 #ifdef FACE_DEBUG
   setSectorLines(ON);
   setCrosshair(ON);
+  _fps = true;
 #endif
 }
 
